@@ -58,13 +58,22 @@
  *   เหลือแค่ 2 แบบ: `list` และ `battery` (ตอนนี้เป็น default). ใครตั้ง `bars`
  *   ไว้จะ fallback ไปเป็น `battery` อัตโนมัติ เช่นเดียวกัน
  *
+ * *** แก้ไขใน v2.0.1 ***
+ * - แก้บั๊กกริดเซลล์ (`list`/`battery` cell style) เพี้ยนเมื่อบาง cell entity
+ *   เป็น unavailable/unknown — เดิมการ์ดจะข้ามเซลล์นั้นไปเฉยๆ ทำให้จำนวนเซลล์ที่
+ *   render น้อยกว่า cell_count จริง (เช่น 14 จาก 16 เซลล์) ทำให้แถวสุดท้ายของ
+ *   `battery` cell style ดูไม่ครบ 8 ต่อแถวอย่างที่ตั้งไว้ — ตอนนี้เซลล์ที่
+ *   unavailable จะโชว์เป็นไอคอน/แถว placeholder ("—", ขอบจาง) แทน เพื่อรักษา
+ *   ตำแหน่ง slot ไว้ในกริดให้ถูกต้องเสมอ ไม่กระทบการคำนวณ highest/lowest cell
+ *   ที่ยังข้าม placeholder เหล่านี้ไปคำนวณเหมือนเดิม
+ *
  * Originally built for JK-BMS but works with any integration that
  * exposes the right sensor entities (ESPHome jk-bms component,
  * JK-BMS BLE custom component, MQTT, Victron, Daly, Seplos, etc.) —
  * just point the `entities` config at your own entity IDs.
  */
 
-const CARD_VERSION = "2.0.0";
+const CARD_VERSION = "2.0.1";
 
 console.info(
   `%c JK-BMS-CARD %c v${CARD_VERSION} `,
@@ -435,10 +444,13 @@ class BatteryCellCard extends HTMLElement {
 
     for (let i = 1; i <= totalCells; i++) {
       const entityId = getVoltageEntityId(i);
+      if (!entityId) continue; // ไม่ได้ตั้ง entity สำหรับเซลล์นี้เลย ข้ามจริงๆ (ไม่ใช่แค่ค่ายังไม่มา)
       const v = this._getState(entityId);
-      if (v !== undefined) {
-        cells.push({ index: i, value: v, resistance: getResistance(i) });
-      }
+      // เก็บ placeholder ไว้แม้ค่าจะ unavailable/unknown (v === undefined) ด้วย
+      // เพื่อรักษาตำแหน่ง index/slot ไว้ในกริด — ถ้าข้ามไปเฉย (เหมือนเดิม)
+      // จำนวนเซลล์ที่ render จะน้อยกว่า cell_count ทำให้แถวสุดท้ายดูเพี้ยน
+      // ไม่ครบ 8 ต่อแถวอย่างที่ควรจะเป็น (ตัว renderer จะโชว์ "—" แทนเอง)
+      cells.push({ index: i, value: v, resistance: v !== undefined ? getResistance(i) : undefined });
     }
     return cells;
   }
@@ -505,7 +517,7 @@ class BatteryCellCard extends HTMLElement {
         uptime !== undefined);
 
     const cells = this._collectCellVoltages();
-    const values = cells.map((c) => c.value);
+    const values = cells.map((c) => c.value).filter((v) => v !== undefined);
     const computedMaxV = values.length ? Math.max(...values) : null;
     const computedMinV = values.length ? Math.min(...values) : null;
     const hasResistanceData = cells.some((c) => c.resistance !== undefined);
@@ -562,6 +574,16 @@ class BatteryCellCard extends HTMLElement {
 
     const cellListHtml = cells
       .map((c) => {
+        const label = String(c.index).padStart(2, "0");
+        // เซลล์นี้ตั้ง entity ไว้แล้วแต่ตอนนี้ unavailable/unknown — โชว์ placeholder
+        // แทนการข้ามไปเฉย เพื่อให้ตำแหน่ง/ลำดับเซลล์ไม่เพี้ยน
+        if (c.value === undefined) {
+          return `
+            <div class="cell-row cell-row-empty">
+              <span class="cell-row-label">${label}</span>
+              <span class="cell-row-value">—</span>
+            </div>`;
+        }
         let cls = "cell-normal";
         if (hasMaxIndexOverride || hasMinIndexOverride) {
           if (hasMaxIndexOverride && c.index === Number(maxCellIndex)) cls = "cell-max";
@@ -570,7 +592,6 @@ class BatteryCellCard extends HTMLElement {
           if (computedMaxV !== null && c.value === computedMaxV) cls = "cell-max";
           else if (computedMinV !== null && c.value === computedMinV) cls = "cell-min";
         }
-        const label = String(c.index).padStart(2, "0");
         const resistanceHtml =
           hasResistanceData && c.resistance !== undefined
             ? `<span class="cell-resistance">${this._fmt(c.resistance, 0)} mΩ</span>`
@@ -597,6 +618,22 @@ class BatteryCellCard extends HTMLElement {
     const cellBatteryBorder = { "cell-max": "#38bdf8", "cell-min": "#f87171", "cell-normal": "#1f2a36" };
     const cellBatteryHtml = cells
       .map((c) => {
+        const label = String(c.index).padStart(2, "0");
+        // เซลล์นี้ตั้ง entity ไว้แล้วแต่ตอนนี้ unavailable/unknown — โชว์ไอคอนเปล่า
+        // (ไม่มี fill, ขอบจาง, ข้อความ "—") แทนการข้ามไปเฉย เพื่อให้กริดยังเรียง
+        // ตามจำนวนคอลัมน์ที่ตั้งไว้ถูกต้อง (เช่น 8 ต่อแถว) ไม่ขาดไปทำให้แถวสุดท้ายเพี้ยน
+        if (c.value === undefined) {
+          return `
+            <div class="cell-batt-col">
+              <div class="cell-batt-nub"></div>
+              <div class="cell-batt-body cell-batt-body-empty">
+                <div class="cell-batt-text">
+                  <div class="cell-batt-v">—</div>
+                </div>
+              </div>
+              <div class="cell-bar-label">${label}</div>
+            </div>`;
+        }
         let cls = "cell-normal";
         if (hasMaxIndexOverride || hasMinIndexOverride) {
           if (hasMaxIndexOverride && c.index === Number(maxCellIndex)) cls = "cell-max";
@@ -607,7 +644,6 @@ class BatteryCellCard extends HTMLElement {
         }
         const fillPct = Math.max(0, Math.min(100, ((c.value - vMin) / vRange) * 100));
         const fillColor = fillPct <= 20 ? "#f87171" : fillPct <= 50 ? "#facc15" : "#4ade80";
-        const label = String(c.index).padStart(2, "0");
         const resistanceHtml =
           c.resistance !== undefined
             ? `<div class="cell-batt-r">${this._fmt(c.resistance, 0)} mΩ</div>`
@@ -1468,6 +1504,13 @@ class BatteryCellCard extends HTMLElement {
       .cell-row.cell-max { border-left-color: #38bdf8; }
       .cell-row.cell-min { border-left-color: #f87171; }
       .cell-row.cell-normal { border-left-color: #4ade80; }
+      .cell-row-empty {
+        border-left-color: #2a3744;
+        opacity: 0.5;
+      }
+      .cell-row-empty .cell-row-value {
+        color: #6b7785;
+      }
       .cell-row-label {
         font-size: 11px;
         color: #6b7785;
@@ -1531,6 +1574,21 @@ class BatteryCellCard extends HTMLElement {
         overflow: hidden;
         box-sizing: border-box;
         flex-shrink: 0;
+      }
+      .cell-batt-body-empty {
+        border: 1.5px dashed #2a3744 !important;
+        opacity: 0.5;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .cell-batt-body-empty .cell-batt-text {
+        position: static;
+        transform: none;
+      }
+      .cell-batt-body-empty .cell-batt-v {
+        color: #6b7785;
+        text-shadow: none;
       }
       .cell-batt-fill {
         position: absolute;
