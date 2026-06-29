@@ -1,0 +1,72 @@
+type: custom:battery-cell-card
+name: Battery Cell Card
+default_language: en
+show_language_toggle: true
+center_style: battery-shape  # battery-shape | arc — อัปเดตจาก "battery" เดิม (ตัวเลือกนี้ถูกตัดออกใน v2.0.0) เป็น battery-shape ที่หน้าตาใกล้เคียงที่สุด
+cell_list_style: list       # list | battery — ตั้งตามที่โจ้เลือกไว้ล่าสุด (ตัวเลือก "bars" ถูกตัดออกใน v2.0.0 แล้ว แต่ "list" ยังใช้ได้เหมือนเดิม)
+show_sparklines: true
+sparkline_hours: 6
+sparkline_style: area
+show_header_info: true
+cell_count: 16
+cell_columns: 4
+bar_columns: 8
+cell_min_voltage: 2.6
+cell_max_voltage: 3.65
+entities:
+  total_voltage: sensor.monitor_power_bms_voltage
+  current: sensor.monitor_power_bms_current
+  power: sensor.monitor_power_bms_power
+  soc: sensor.monitor_power_bms_soc
+  remaining_capacity: sensor.monitor_power_cap_remaining
+  total_capacity: sensor.monitor_power_cap_total
+  soh: ""                                      # ไม่มี entity SOH ในระบบนี้ ปล่อยว่างไว้
+  cycles: sensor.monitor_power_cycle_count
+  avg_cell_voltage: sensor.monitor_power_avg_cell_voltage
+  delta_cell_voltage: sensor.monitor_power_cell_delta   # การ์ดแปลงเป็น mV ให้อัตโนมัติ (entity นี้ส่งมาเป็น V)
+  temp_1: sensor.monitor_power_bms_t1
+  temp_2: sensor.monitor_power_bms_t2
+  # temp_3 / temp_4: ไม่มี entity แยกในระบบนี้ ใช้ MOS Temp/Temperature ตัวอื่นแทนไม่ได้เพราะคนละความหมาย ข้ามไว้
+  mos_temp: sensor.monitor_power_mos_temp
+  # max_voltage_cell_index / min_voltage_cell_index: ไม่มี entity นี้ในระบบ
+  # การ์ดจะคำนวณ max/min จากค่าโวลต์เซลล์เองอัตโนมัติแทน
+  charge_status: binary_sensor.monitor_power_bms_charging
+  discharge_status: binary_sensor.monitor_power_bms_discharging
+  balance_status: binary_sensor.monitor_power_bms_balancing
+  # battery_label / hw_version: ไม่มี entity นี้ในระบบ ข้ามไว้ (header bar จะโชว์เท่าที่มีข้อมูล)
+  sw_version: sensor.monitor_power_firmware
+  uptime: sensor.monitor_power_uptime
+  cell_voltages:
+    - sensor.monitor_power_cell_1_voltage
+    - sensor.monitor_power_cell_2_voltage
+    - sensor.monitor_power_cell_3_voltage
+    - sensor.monitor_power_cell_4_voltage
+    - sensor.monitor_power_cell_5_voltage
+    - sensor.monitor_power_cell_6_voltage
+    - sensor.monitor_power_cell_7_voltage
+    - sensor.monitor_power_cell_8_voltage
+    - sensor.monitor_power_cell_9_voltage
+    - sensor.monitor_power_cell_10_voltage
+    - sensor.monitor_power_cell_11_voltage
+    - sensor.monitor_power_cell_12_voltage
+    - sensor.monitor_power_cell_13_voltage
+    - sensor.monitor_power_cell_14_voltage
+    - sensor.monitor_power_cell_15_voltage
+    - sensor.monitor_power_cell_16_voltage
+  cell_resistances:                              # ใหม่! เพิ่งเจอ entity นี้ในรายการที่ส่งมา
+    - sensor.powmr_jkbms_cell_1_resistance
+    - sensor.powmr_jkbms_cell_2_resistance
+    - sensor.powmr_jkbms_cell_3_resistance
+    - sensor.powmr_jkbms_cell_4_resistance
+    - sensor.powmr_jkbms_cell_5_resistance
+    - sensor.powmr_jkbms_cell_6_resistance
+    - sensor.powmr_jkbms_cell_7_resistance
+    - sensor.powmr_jkbms_cell_8_resistance
+    - sensor.powmr_jkbms_cell_9_resistance
+    - sensor.powmr_jkbms_cell_10_resistance
+    - sensor.powmr_jkbms_cell_11_resistance
+    - sensor.powmr_jkbms_cell_12_resistance
+    - sensor.powmr_jkbms_cell_13_resistance
+    - sensor.powmr_jkbms_cell_14_resistance
+    - sensor.powmr_jkbms_cell_15_resistance
+    - sensor.powmr_jkbms_cell_16_resistance
