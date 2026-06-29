@@ -67,13 +67,28 @@
  *   ตำแหน่ง slot ไว้ในกริดให้ถูกต้องเสมอ ไม่กระทบการคำนวณ highest/lowest cell
  *   ที่ยังข้าม placeholder เหล่านี้ไปคำนวณเหมือนเดิม
  *
+ * *** ใหม่/แก้ไขใน v2.1.0 ***
+ * - แก้บั๊กตำแหน่งตัวเลข SOC/แรงดัน/กระแสใน arc gauge ไม่อยู่กึ่งกลางวงแหวน
+ *   (เอียงขึ้นด้านบนประมาณ 10px จากจุดกึ่งกลางจริง) — วัดตำแหน่งด้วย
+ *   getBoundingClientRect() แม่นยำแล้วปรับ `top` ของ `.arc-gauge-text` จาก
+ *   38% เป็น 44.7% ตอนนี้ตำแหน่งตรงกึ่งกลางวงแหวนพอดี (ต่างกัน <1px)
+ * - เพิ่มส่วน "Trend Tiles" ใหม่ — Total Voltage, Current, MOS Temp, Temp 1,
+ *   Temp 2 และ Delta Cell แสดงเป็น tile ตัวเลขใหญ่พร้อมกราฟเส้นพื้นหลังแบบ
+ *   area chart ไล่เฉด (สีต่างกันตามชนิดข้อมูล: เขียว=แรงดัน/อุณหภูมิทั่วไป,
+ *   ส้ม=กระแส, เหลือง=MOS Temp) แทนตัวเลขเดี่ยว+ไอคอน sparkline เล็กๆแบบเดิม
+ * - เพิ่ม `current` เข้ารายการ entity ที่ดึง 6h sparkline history ด้วย (เดิม
+ *   มีแค่ total_voltage/mos_temp/temp_1-4) เพื่อให้ tile กระแสมีกราฟพื้นหลัง
+ *   จริงจากข้อมูลย้อนหลัง ไม่ใช่กราฟเปล่า
+ * - Max/Min Cell, Batt Power, Avg Cell, SOC, Remain/Total Cap, SOH, Cycles
+ *   ยังอยู่ในรูปแบบ panel แบบเดิม (ยังไม่มีข้อมูล history ให้ทำกราฟพื้นหลัง)
+ *
  * Originally built for JK-BMS but works with any integration that
  * exposes the right sensor entities (ESPHome jk-bms component,
  * JK-BMS BLE custom component, MQTT, Victron, Daly, Seplos, etc.) —
  * just point the `entities` config at your own entity IDs.
  */
 
-const CARD_VERSION = "2.0.1";
+const CARD_VERSION = "2.1.0";
 
 console.info(
   `%c JK-BMS-CARD %c v${CARD_VERSION} `,
@@ -85,6 +100,8 @@ const STRINGS = {
   th: {
     toggleTh: "ไทย",
     toggleEn: "English",
+    voltage: "แรงดันรวม",
+    current: "กระแส",
     packPower: "กำลังแบต",
     avgCell: "เซลล์เฉลี่ย",
     deltaCell: "ผลต่างเซลล์",
@@ -121,6 +138,8 @@ const STRINGS = {
   en: {
     toggleTh: "ไทย",
     toggleEn: "English",
+    voltage: "Total Voltage",
+    current: "Current",
     packPower: "Batt Power",
     avgCell: "Avg Cell",
     deltaCell: "Delta Cell",
@@ -275,7 +294,7 @@ class BatteryCellCard extends HTMLElement {
     if (!this._hass || !this._config?.show_sparklines) return;
 
     const ents = this._config.entities;
-    const sparklineFields = ["total_voltage", "mos_temp", "temp_1", "temp_2", "temp_3", "temp_4"];
+    const sparklineFields = ["total_voltage", "current", "mos_temp", "temp_1", "temp_2", "temp_3", "temp_4"];
     const entityIds = sparklineFields
       .map((f) => ents[f])
       .filter((id) => !!id);
@@ -807,34 +826,47 @@ class BatteryCellCard extends HTMLElement {
               : ""
           }
 
+          <div class="trend-tile-grid">
+            <div class="trend-tile">
+              <div class="trend-tile-spark spark-voltage"></div>
+              <div class="trend-tile-label" data-k="voltage"></div>
+              <div class="trend-tile-value voltage"></div>
+            </div>
+            <div class="trend-tile">
+              <div class="trend-tile-spark spark-current"></div>
+              <div class="trend-tile-label" data-k="current"></div>
+              <div class="trend-tile-value current"></div>
+            </div>
+            <div class="trend-tile">
+              <div class="trend-tile-spark spark-mostemp"></div>
+              <div class="trend-tile-label" data-k="mosTemp"></div>
+              <div class="trend-tile-value mostemp"></div>
+            </div>
+            <div class="trend-tile">
+              <div class="trend-tile-spark spark-temp1"></div>
+              <div class="trend-tile-label" data-k="temp1"></div>
+              <div class="trend-tile-value temp1"></div>
+            </div>
+            <div class="trend-tile">
+              <div class="trend-tile-spark spark-temp2"></div>
+              <div class="trend-tile-label" data-k="temp2"></div>
+              <div class="trend-tile-value temp2"></div>
+            </div>
+            <div class="trend-tile trend-tile-plain">
+              <div class="trend-tile-label" data-k="deltaCell"></div>
+              <div class="trend-tile-value deltacell"></div>
+            </div>
+          </div>
           <div class="top-grid">
             <div class="panel">
-              <div class="metric-row">
-                <div class="big-value voltage"></div>
-                <div class="spark spark-voltage"></div>
-              </div>
               <div class="minmax-row">
                 <span class="minmax-item minmax-max"><span data-k="maxCell"></span>: <span class="minmax-val max-cell-val"></span></span>
                 <span class="minmax-item minmax-min"><span data-k="minCell"></span>: <span class="minmax-val min-cell-val"></span></span>
               </div>
               <div class="row"><span class="row-label" data-k="packPower"></span><span class="row-value power"></span></div>
               <div class="row"><span class="row-label" data-k="avgCell"></span><span class="row-value avgcell"></span></div>
-              <div class="row"><span class="row-label" data-k="deltaCell"></span><span class="row-value deltacell"></span></div>
-              <div class="row temp-row">
-                <span class="row-label" data-k="temp1"></span><span class="row-value temp1"></span>
-                <div class="spark spark-temp1"></div>
-              </div>
-              <div class="row temp-row">
-                <span class="row-label" data-k="temp2"></span><span class="row-value temp2"></span>
-                <div class="spark spark-temp2"></div>
-              </div>
-              <div class="row temp-row">
-                <span class="row-label" data-k="mosTemp"></span><span class="row-value mostemp"></span>
-                <div class="spark spark-mostemp"></div>
-              </div>
             </div>
             <div class="panel">
-              <div class="big-value current"></div>
               <div class="row"><span class="row-label" data-k="soc"></span><span class="row-value soc"></span></div>
               <div class="row"><span class="row-label" data-k="remainCap"></span><span class="row-value remaincap"></span></div>
               <div class="row"><span class="row-label" data-k="totalCap"></span><span class="row-value totalcap"></span></div>
@@ -992,13 +1024,16 @@ class BatteryCellCard extends HTMLElement {
 
     // --- Sparklines ---
     if (this._config.show_sparklines) {
-      root.querySelector(".spark-voltage").innerHTML = sparkRow(ents.total_voltage, "#f59e0b");
-      root.querySelector(".spark-temp1").innerHTML = sparkRow(ents.temp_1, "#facc15");
-      root.querySelector(".spark-temp2").innerHTML = sparkRow(ents.temp_2, "#facc15");
+      root.querySelector(".spark-voltage").innerHTML = sparkRow(ents.total_voltage, "#4ade80");
+      root.querySelector(".spark-current").innerHTML = sparkRow(ents.current, "#fb923c");
+      root.querySelector(".spark-temp1").innerHTML = sparkRow(ents.temp_1, "#4ade80");
+      root.querySelector(".spark-temp2").innerHTML = sparkRow(ents.temp_2, "#4ade80");
       root.querySelector(".spark-mostemp").innerHTML = sparkRow(ents.mos_temp, "#f59e0b");
     }
 
     // --- Main metrics ---
+    root.querySelector('[data-k="voltage"]').textContent = t("voltage");
+    root.querySelector('[data-k="current"]').textContent = t("current");
     root.querySelector(".voltage").textContent =
       totalVoltage !== undefined ? `${this._fmt(totalVoltage, this._config.decimals_voltage)} V` : t("unavailable");
     root.querySelector(".current").textContent =
@@ -1260,7 +1295,7 @@ class BatteryCellCard extends HTMLElement {
       }
       .arc-gauge-text {
         position: absolute;
-        top: 38%;
+        top: 44.7%;
         left: 0;
         width: 100%;
         transform: translateY(-50%);
@@ -1375,32 +1410,60 @@ class BatteryCellCard extends HTMLElement {
       .minmax-max .minmax-val { color: #38bdf8; }
       .minmax-min .minmax-val { color: #f87171; }
 
-      /* --- Sparkline --- */
-      .metric-row {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        margin-bottom: 14px;
+      /* --- Trend tiles: ตัวเลขใหญ่ + กราฟเส้นพื้นหลังเต็ม tile (แทน metric-row/temp-row เดิม) --- */
+      .trend-tile-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 18px;
       }
-      .spark {
-        flex-shrink: 0;
+      .trend-tile {
+        position: relative;
+        background: #161e27;
+        border: 1px solid #1f2a36;
+        border-radius: 12px;
+        padding: 10px 12px;
+        overflow: hidden;
+        min-height: 64px;
+        box-sizing: border-box;
+      }
+      .trend-tile-spark {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 60%;
         opacity: 0.9;
       }
-      .spark svg.sparkline {
-        width: 64px;
-        height: 20px;
+      .trend-tile-spark svg.sparkline {
+        width: 100%;
+        height: 100%;
         display: block;
       }
-      .temp-row {
+      .trend-tile-label {
         position: relative;
-        gap: 8px;
+        z-index: 1;
+        font-size: 11px;
+        color: #8b949e;
+        font-weight: 600;
+        margin-bottom: 3px;
       }
-      .temp-row .spark {
-        margin-left: auto;
+      .trend-tile-value {
+        position: relative;
+        z-index: 1;
+        font-size: 19px;
+        font-weight: 800;
+        letter-spacing: -0.01em;
       }
-      .temp-row .spark svg.sparkline {
-        width: 40px;
-        height: 14px;
+      .trend-tile-value.voltage { color: #4ade80; }
+      .trend-tile-value.current { color: #fb923c; }
+      .trend-tile-value.temp1, .trend-tile-value.temp2 { color: #4ade80; }
+      .trend-tile-value.mostemp { color: #f59e0b; }
+      .trend-tile-value.deltacell { color: #e5edf5; }
+      .trend-tile-plain {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
       }
 
       .top-grid {
@@ -1415,14 +1478,6 @@ class BatteryCellCard extends HTMLElement {
         padding: 16px 18px;
         border: 1px solid #1f2a36;
       }
-      .big-value {
-        font-size: 30px;
-        font-weight: 700;
-        letter-spacing: -0.02em;
-      }
-      .panel:not(:has(.metric-row)) .big-value { margin-bottom: 14px; }
-      .big-value.voltage { color: #4ade80; }
-      .big-value.current { color: #fb923c; margin-bottom: 14px; }
       .row {
         display: flex;
         justify-content: space-between;
@@ -1641,6 +1696,7 @@ class BatteryCellCard extends HTMLElement {
       }
       @media (max-width: 420px) {
         .top-grid { grid-template-columns: 1fr; }
+        .trend-tile-grid { grid-template-columns: 1fr; }
         .battery-visual { gap: 4px; }
         .flow-icon { width: 54px; }
         .flow-label { font-size: 8.5px; }
