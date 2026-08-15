@@ -739,7 +739,7 @@ class BatteryCellCard extends HTMLElement {
                     <linearGradient id="arcGaugeGrad" x1="0%" y1="100%" x2="65%" y2="0%">
                       <stop class="arc-grad-stop-0" offset="0%" stop-color="#22c55e"/>
                       <stop class="arc-grad-stop-1" offset="50%" stop-color="#4ade80"/>
-                      <stop offset="100%" stop-color="#38bdf8"/>
+                      <stop class="arc-grad-stop-2" offset="100%" stop-color="#38bdf8"/>
                     </linearGradient>
                     <filter id="arcGlowFilter" x="-50%" y="-50%" width="200%" height="200%">
                       <feGaussianBlur stdDeviation="5" result="blur"/>
@@ -934,8 +934,12 @@ class BatteryCellCard extends HTMLElement {
     }
 
     // --- Battery visual ---
-    root.querySelector('[data-k="gridSolar"]').textContent = t("gridSolar");
-    root.querySelector('[data-k="load"]').textContent = t("load");
+    // ⚡ FIX: element พวกนี้อยู่ใน flow-icon ที่ตอนนี้ซ่อนได้ด้วย show_flow_icons — ถ้าซ่อนอยู่
+    // querySelector จะได้ null แล้ว .textContent พังทันที (เจอบั๊กจริงตอนทดสอบ render จริง)
+    if (this._config.show_flow_icons) {
+      root.querySelector('[data-k="gridSolar"]').textContent = t("gridSolar");
+      root.querySelector('[data-k="load"]').textContent = t("load");
+    }
 
     // ใช้ค่าจาก charge_status/discharge_status entity (ถ้ามี) เป็นหลัก เพราะเป็นค่าที่ BMS
     // รายงานมาตรงๆ — ถ้าไม่ได้ตั้ง entity นี้ไว้ ค่อย fallback ไปใช้ทิศทางที่คำนวณจาก current แทน
@@ -1003,6 +1007,7 @@ class BatteryCellCard extends HTMLElement {
       // เดียวกันนี้ยังคำนวณจากเกณฑ์ ≤20%=แดง, ≤50%=เหลือง, >50%=เขียว เหมือนเดิมไม่เปลี่ยน)
       root.querySelector(".arc-grad-stop-0").setAttribute("stop-color", socColor);
       root.querySelector(".arc-grad-stop-1").setAttribute("stop-color", socColor);
+      root.querySelector(".arc-grad-stop-2").setAttribute("stop-color", socColor);
 
       // ตำแหน่งจุดปลายแถบ (pointer) คำนวณจากมุมเดียวกับที่ใช้วาด path (เริ่ม 135°, กวาด 270°)
       const angleDeg = 135 + 270 * (socPct / 100);
