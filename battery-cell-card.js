@@ -1305,8 +1305,8 @@ class BatteryCellCard extends HTMLElement {
       /* --- Arc gauge (270°, speedometer style) --- */
       .arc-gauge-wrap {
         position: relative;
-        width: 168px;
-        height: 148px;
+        width: 208px;
+        height: 183px;
       }
       .arc-gauge-svg {
         width: 100%;
