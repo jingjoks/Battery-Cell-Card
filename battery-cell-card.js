@@ -88,7 +88,7 @@
  * just point the `entities` config at your own entity IDs.
  */
 
-const CARD_VERSION = "2.1.0";
+const CARD_VERSION = "2.2.0";
 
 console.info(
   `%c JK-BMS-CARD %c v${CARD_VERSION} `,
