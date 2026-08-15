@@ -206,6 +206,7 @@ class BatteryCellCard extends HTMLElement {
       cell_max_voltage: config.cell_max_voltage ?? 3.65,
       center_style: config.center_style === "arc" ? "arc" : "battery-shape",
       show_header_info: config.show_header_info !== false,
+      show_flow_icons: config.show_flow_icons !== false, // ⚡ NEW: ซ่อน/โชว์ไอคอน Grid-Solar/Load ข้างวงแหวนได้ (default true กันของเดิมเปลี่ยนไป)
       entities: config.entities,
     };
     this._lang = this._config.default_language;
@@ -707,15 +708,29 @@ class BatteryCellCard extends HTMLElement {
             }
           </div>
 
+          ${
+            ents.charge_status || ents.discharge_status || ents.balance_status
+              ? `<div class="status-row">
+                  ${ents.charge_status ? `<div class="status-chip"><span class="status-dot status-dot-charge"></span><span class="status-label" data-k="charge"></span><span class="status-pill status-charge"></span></div>` : ""}
+                  ${ents.discharge_status ? `<div class="status-chip"><span class="status-dot status-dot-discharge"></span><span class="status-label" data-k="discharge"></span><span class="status-pill status-discharge"></span></div>` : ""}
+                  ${ents.balance_status ? `<div class="status-chip"><span class="status-dot status-dot-balance"></span><span class="status-label" data-k="balance"></span><span class="status-pill status-balance"></span></div>` : ""}
+                </div>`
+              : ""
+          }
+
           <div class="battery-visual">
-            <div class="flow-icon flow-icon-left">
+            ${
+              this._config.show_flow_icons
+                ? `<div class="flow-icon flow-icon-left">
               <svg viewBox="0 0 24 24" class="icon-grid"><path d="M7 2v11h3v9l7-12h-4l4-8z" fill="currentColor"/></svg>
               <span class="flow-label" data-k="gridSolar"></span>
               <span class="flow-state flow-state-left"></span>
               <span class="flow-watt flow-watt-left"></span>
             </div>
 
-            <div class="flow-connector flow-connector-left"></div>
+            <div class="flow-connector flow-connector-left"></div>`
+                : ""
+            }
 
             <div class="center-visual center-visual-arc">
               <div class="arc-gauge-wrap">
@@ -806,25 +821,19 @@ class BatteryCellCard extends HTMLElement {
               </div>
             </div>
 
-            <div class="flow-connector flow-connector-right"></div>
+            ${
+              this._config.show_flow_icons
+                ? `<div class="flow-connector flow-connector-right"></div>
 
             <div class="flow-icon flow-icon-right">
               <svg viewBox="0 0 24 24" class="icon-load"><path d="M12 2C8 2 5 5 5 9c0 3 2 5 2 5h10s2-2 2-5c0-4-3-7-7-7zm0 18a3 3 0 003-3H9a3 3 0 003 3z" fill="currentColor"/></svg>
               <span class="flow-label" data-k="load"></span>
               <span class="flow-state flow-state-right"></span>
               <span class="flow-watt flow-watt-right"></span>
-            </div>
+            </div>`
+                : ""
+            }
           </div>
-
-          ${
-            ents.charge_status || ents.discharge_status || ents.balance_status
-              ? `<div class="status-row">
-                  ${ents.charge_status ? `<div class="status-chip"><span class="status-label" data-k="charge"></span><span class="status-pill status-charge"></span></div>` : ""}
-                  ${ents.discharge_status ? `<div class="status-chip"><span class="status-label" data-k="discharge"></span><span class="status-pill status-discharge"></span></div>` : ""}
-                  ${ents.balance_status ? `<div class="status-chip"><span class="status-label" data-k="balance"></span><span class="status-pill status-balance"></span></div>` : ""}
-                </div>`
-              : ""
-          }
 
           <div class="trend-tile-grid">
             <div class="trend-tile">
@@ -939,24 +948,28 @@ class BatteryCellCard extends HTMLElement {
     const effectiveDischarging = statusConflict ? isDischarging : dischargeStatus !== undefined ? dischargeStatus : isDischarging;
     const absPower = power !== undefined ? Math.abs(power) : undefined;
 
-    const leftStateEl = root.querySelector(".flow-state-left");
-    const rightStateEl = root.querySelector(".flow-state-right");
-    leftStateEl.textContent = `${t("charge")}: ${effectiveCharging ? t("statusOn") : t("statusOff")}`;
-    leftStateEl.className = "flow-state flow-state-left" + (effectiveCharging ? " active" : "");
-    rightStateEl.textContent = `${t("discharge")}: ${effectiveDischarging ? t("statusOn") : t("statusOff")}`;
-    rightStateEl.className = "flow-state flow-state-right" + (effectiveDischarging ? " active" : "");
+    // ⚡ NEW: ครอบทั้งบล็อกด้วยเช็ค show_flow_icons — ถ้าปิดไว้ element พวกนี้จะไม่ถูก render เลย
+    // (ดู HTML template ด้านบน) querySelector จะได้ null แล้ว .textContent/.classList พัง ต้องข้ามไปเลย
+    if (this._config.show_flow_icons) {
+      const leftStateEl = root.querySelector(".flow-state-left");
+      const rightStateEl = root.querySelector(".flow-state-right");
+      leftStateEl.textContent = `${t("charge")}: ${effectiveCharging ? t("statusOn") : t("statusOff")}`;
+      leftStateEl.className = "flow-state flow-state-left" + (effectiveCharging ? " active" : "");
+      rightStateEl.textContent = `${t("discharge")}: ${effectiveDischarging ? t("statusOn") : t("statusOff")}`;
+      rightStateEl.className = "flow-state flow-state-right" + (effectiveDischarging ? " active" : "");
 
-    const leftWattEl = root.querySelector(".flow-watt-left");
-    const rightWattEl = root.querySelector(".flow-watt-right");
-    leftWattEl.textContent = effectiveCharging && absPower !== undefined ? `${this._fmt(absPower, 0)} W` : "";
-    leftWattEl.className = "flow-watt flow-watt-left" + (effectiveCharging ? " active" : "");
-    rightWattEl.textContent = effectiveDischarging && absPower !== undefined ? `${this._fmt(absPower, 0)} W` : "";
-    rightWattEl.className = "flow-watt flow-watt-right" + (effectiveDischarging ? " active" : "");
+      const leftWattEl = root.querySelector(".flow-watt-left");
+      const rightWattEl = root.querySelector(".flow-watt-right");
+      leftWattEl.textContent = effectiveCharging && absPower !== undefined ? `${this._fmt(absPower, 0)} W` : "";
+      leftWattEl.className = "flow-watt flow-watt-left" + (effectiveCharging ? " active" : "");
+      rightWattEl.textContent = effectiveDischarging && absPower !== undefined ? `${this._fmt(absPower, 0)} W` : "";
+      rightWattEl.className = "flow-watt flow-watt-right" + (effectiveDischarging ? " active" : "");
 
-    root.querySelector(".flow-icon-left").classList.toggle("active", effectiveCharging);
-    root.querySelector(".flow-icon-right").classList.toggle("active", effectiveDischarging);
-    root.querySelector(".flow-connector-left").classList.toggle("active", effectiveCharging);
-    root.querySelector(".flow-connector-right").classList.toggle("active", effectiveDischarging);
+      root.querySelector(".flow-icon-left").classList.toggle("active", effectiveCharging);
+      root.querySelector(".flow-icon-right").classList.toggle("active", effectiveDischarging);
+      root.querySelector(".flow-connector-left").classList.toggle("active", effectiveCharging);
+      root.querySelector(".flow-connector-right").classList.toggle("active", effectiveDischarging);
+    }
 
     // --- สลับ center visual: arc gauge / battery-shape (เหลือ 2 แบบ) ---
     const centerArcEl = root.querySelector(".center-visual-arc");
@@ -985,7 +998,10 @@ class BatteryCellCard extends HTMLElement {
         el.style.strokeDashoffset = `${offset.toFixed(1)}`;
       });
 
-      root.querySelector(".arc-grad-stop-0").setAttribute("stop-color", socColorDark);
+      // ⚡ UPDATE: ใช้สีเดียวกันทั้ง 2 stop (แทนไล่สีเข้ม→อ่อนแบบเดิม) ให้ดูเป็นสีทึบสม่ำเสมอ
+      // แบบแอป JK-BMS ต้นแบบ — ยังคงระบบสีแดง/เหลือง/เขียวตาม SOC ไว้เหมือนเดิมทุกจุด (ค่า socColor
+      // เดียวกันนี้ยังคำนวณจากเกณฑ์ ≤20%=แดง, ≤50%=เหลือง, >50%=เขียว เหมือนเดิมไม่เปลี่ยน)
+      root.querySelector(".arc-grad-stop-0").setAttribute("stop-color", socColor);
       root.querySelector(".arc-grad-stop-1").setAttribute("stop-color", socColor);
 
       // ตำแหน่งจุดปลายแถบ (pointer) คำนวณจากมุมเดียวกับที่ใช้วาด path (เริ่ม 135°, กวาด 270°)
@@ -1086,26 +1102,32 @@ class BatteryCellCard extends HTMLElement {
     root.querySelector(".cycles").textContent = cycles !== undefined ? this._fmt(cycles, 0) : "—";
 
     // --- Balance status pill (charge/discharge ย้ายไปแสดงที่ flow icon ซ้าย-ขวาแล้ว) ---
-    const setStatusPill = (selector, state) => {
+    // ⚡ UPDATE: เพิ่ม dotSelector ให้ toggle จุดสี • คู่กับตัวหนังสือ ON/OFF ไปด้วย (แบบแอป JK-BMS)
+    const setStatusPill = (selector, state, dotSelector) => {
       const el = root.querySelector(selector);
-      if (!el) return;
-      if (state === undefined) {
-        el.textContent = "—";
-        el.className = el.className.replace(/\bstatus-(on|off)\b/g, "").trim();
-      } else {
-        el.textContent = state ? t("statusOn") : t("statusOff");
-        el.className = el.className.replace(/\bstatus-(on|off)\b/g, "").trim() + (state ? " status-on" : " status-off");
+      const dotEl = dotSelector ? root.querySelector(dotSelector) : null;
+      if (el) {
+        if (state === undefined) {
+          el.textContent = "—";
+          el.className = el.className.replace(/\bstatus-(on|off)\b/g, "").trim();
+        } else {
+          el.textContent = state ? t("statusOn") : t("statusOff");
+          el.className = el.className.replace(/\bstatus-(on|off)\b/g, "").trim() + (state ? " status-on" : " status-off");
+        }
+      }
+      if (dotEl) {
+        dotEl.className = dotEl.className.replace(/\bstatus-(on|off)\b/g, "").trim() + (state === undefined ? "" : state ? " status-on" : " status-off");
       }
     };
     root.querySelectorAll('[data-k="balance"]').forEach((el) => (el.textContent = t("balance")));
     root.querySelectorAll('[data-k="charge"]').forEach((el) => (el.textContent = t("charge")));
     root.querySelectorAll('[data-k="discharge"]').forEach((el) => (el.textContent = t("discharge")));
-    setStatusPill(".status-balance", balanceStatus);
+    setStatusPill(".status-balance", balanceStatus, ".status-dot-balance");
     // ใช้ effectiveCharging/effectiveDischarging ตัวเดียวกับที่ไอคอน flow ซ้าย-ขวาใช้
     // (คำนวณไว้แล้วด้านบน) เพื่อให้ชิปสถานะตรงนี้กับไอคอน flow แสดงผลตรงกันเสมอ
     // ไม่ขัดแย้งกันเองแม้ entity charge_status/discharge_status จะรายงานค้างพร้อมกัน
-    setStatusPill(".status-charge", ents.charge_status ? effectiveCharging : undefined);
-    setStatusPill(".status-discharge", ents.discharge_status ? effectiveDischarging : undefined);
+    setStatusPill(".status-charge", ents.charge_status ? effectiveCharging : undefined, ".status-dot-charge");
+    setStatusPill(".status-discharge", ents.discharge_status ? effectiveDischarging : undefined, ".status-dot-discharge");
 
     // --- Max/min cell label ใต้กราฟ voltage หลัก ---
     const maxCellLabelEl = root.querySelector('[data-k="maxCell"]');
@@ -1310,10 +1332,15 @@ class BatteryCellCard extends HTMLElement {
         letter-spacing: -0.02em;
         color: #4ade80;
       }
+      /* ⚡ UPDATE: ใส่กรอบทรงแคปซูล (pill) รอบ V/A ตามรูปตัวอย่าง แทนตัวหนังสือลอยเฉยๆ */
       .arc-gauge-sub {
         font-size: 12.5px;
-        font-weight: 600;
-        color: #8b949e;
+        font-weight: 700;
+        color: #e6edf3;
+        border: 1.5px solid #2a3744;
+        border-radius: 14px;
+        padding: 3px 14px;
+        margin-top: 3px;
       }
       .arc-end-label {
         position: absolute;
@@ -1355,36 +1382,46 @@ class BatteryCellCard extends HTMLElement {
       }
 
       /* --- Charge/Discharge/Balance status row --- */
+      /* ⚡ UPDATE: จัดใหม่เป็นแถวเดียวคั่นด้วยเส้นบางๆ (แบบแอป JK-BMS) แทนกล่องแยกแต่ละอัน */
       .status-row {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-        gap: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-around;
+        padding: 10px 0;
         margin-bottom: 18px;
+        border-bottom: 1px solid #1f2a36;
       }
       .status-chip {
-        background: #161e27;
-        border: 1px solid #1f2a36;
-        border-radius: 12px;
-        padding: 10px 8px;
         display: flex;
-        flex-direction: column;
         align-items: center;
         gap: 6px;
+        padding: 0 14px;
+        border-right: 1px solid #1f2a36;
       }
+      .status-chip:last-child { border-right: none; }
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #6b7785;
+        flex-shrink: 0;
+      }
+      .status-dot.status-on { background: #4ade80; }
+      .status-dot.status-off { background: #fb7185; }
       .status-label {
-        font-size: 12px;
-        color: #8b949e;
+        font-size: 13px;
+        color: #c9d1d9;
         font-weight: 600;
       }
       .status-pill {
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 800;
-        padding: 2px 12px;
-        border-radius: 10px;
         letter-spacing: 0.03em;
-        background: #2a3744;
+        background: none;
         color: #6b7785;
       }
+      .status-pill.status-on { color: #4ade80; }
+      .status-pill.status-off { color: #fb7185; }
       .status-pill.status-on {
         background: rgba(74, 222, 128, 0.18);
         color: #4ade80;
