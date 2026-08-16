@@ -88,7 +88,7 @@
  * just point the `entities` config at your own entity IDs.
  */
 
-const CARD_VERSION = "2.2.2";
+const CARD_VERSION = "2.2.3";
 
 console.info(
   `%c JK-BMS-CARD %c v${CARD_VERSION} `,
@@ -356,7 +356,7 @@ class BatteryCellCard extends HTMLElement {
     if (this._config.sparkline_style === "line") {
       return `
         <svg class="sparkline" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
-          <polyline points="${lineStr}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" opacity="0.85" />
+          <polyline points="${lineStr}" fill="none" stroke="${color}" stroke-width="1" stroke-linejoin="round" stroke-linecap="round" opacity="0.85" />
         </svg>`;
     }
 
@@ -375,7 +375,7 @@ class BatteryCellCard extends HTMLElement {
           </linearGradient>
         </defs>
         <path d="${areaPath}" fill="url(#${gradId})" stroke="none" />
-        <polyline points="${lineStr}" fill="none" stroke="${color}" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round" opacity="0.9" />
+        <polyline points="${lineStr}" fill="none" stroke="${color}" stroke-width="0.8" stroke-linejoin="round" stroke-linecap="round" opacity="0.9" />
       </svg>`;
   }
 
