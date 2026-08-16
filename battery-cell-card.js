@@ -88,7 +88,7 @@
  * just point the `entities` config at your own entity IDs.
  */
 
-const CARD_VERSION = "2.2.4";
+const CARD_VERSION = "2.3.0";
 
 console.info(
   `%c JK-BMS-CARD %c v${CARD_VERSION} `,
@@ -356,7 +356,7 @@ class BatteryCellCard extends HTMLElement {
     if (this._config.sparkline_style === "line") {
       return `
         <svg class="sparkline" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
-          <polyline points="${lineStr}" fill="none" stroke="${color}" stroke-width="0.7" stroke-linejoin="round" stroke-linecap="round" opacity="0.85" />
+          <polyline points="${lineStr}" fill="none" stroke="${color}" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round" opacity="0.85" />
         </svg>`;
     }
 
@@ -375,8 +375,18 @@ class BatteryCellCard extends HTMLElement {
           </linearGradient>
         </defs>
         <path d="${areaPath}" fill="url(#${gradId})" stroke="none" />
-        <polyline points="${lineStr}" fill="none" stroke="${color}" stroke-width="0.6" stroke-linejoin="round" stroke-linecap="round" opacity="0.9" />
+        <polyline points="${lineStr}" fill="none" stroke="${color}" stroke-width="0.4" stroke-linejoin="round" stroke-linecap="round" opacity="0.9" />
       </svg>`;
+  }
+
+  // ⚡ NEW (13 ส.ค. 69): คำนวณ min/max ของข้อมูล sparkline สำหรับแสดงเป็นสเกลอ้างอิง
+  // (ผู้ใช้ขอให้มีสเกลบอก — เดิมมีแค่กราฟเปล่าๆ ไม่รู้ว่าแกว่งอยู่ในช่วงไหน)
+  _getSparklineRange(entityId, decimals) {
+    const values = this._sparklineCache?.[entityId];
+    if (!values || values.length < 2) return "";
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    return `${this._fmt(min, decimals)}–${this._fmt(max, decimals)}`;
   }
 
   _fmt(value, decimals) {
@@ -838,26 +848,31 @@ class BatteryCellCard extends HTMLElement {
           <div class="trend-tile-grid">
             <div class="trend-tile">
               <div class="trend-tile-spark spark-voltage"></div>
+              <div class="trend-tile-scale scale-voltage"></div>
               <div class="trend-tile-label" data-k="voltage"></div>
               <div class="trend-tile-value voltage"></div>
             </div>
             <div class="trend-tile">
               <div class="trend-tile-spark spark-current"></div>
+              <div class="trend-tile-scale scale-current"></div>
               <div class="trend-tile-label" data-k="current"></div>
               <div class="trend-tile-value current"></div>
             </div>
             <div class="trend-tile">
               <div class="trend-tile-spark spark-mostemp"></div>
+              <div class="trend-tile-scale scale-mostemp"></div>
               <div class="trend-tile-label" data-k="mosTemp"></div>
               <div class="trend-tile-value mostemp"></div>
             </div>
             <div class="trend-tile">
               <div class="trend-tile-spark spark-temp1"></div>
+              <div class="trend-tile-scale scale-temp1"></div>
               <div class="trend-tile-label" data-k="temp1"></div>
               <div class="trend-tile-value temp1"></div>
             </div>
             <div class="trend-tile">
               <div class="trend-tile-spark spark-temp2"></div>
+              <div class="trend-tile-scale scale-temp2"></div>
               <div class="trend-tile-label" data-k="temp2"></div>
               <div class="trend-tile-value temp2"></div>
             </div>
@@ -1044,6 +1059,17 @@ class BatteryCellCard extends HTMLElement {
       root.querySelector(".spark-temp1").innerHTML = sparkRow(ents.temp_1, "#4ade80");
       root.querySelector(".spark-temp2").innerHTML = sparkRow(ents.temp_2, "#4ade80");
       root.querySelector(".spark-mostemp").innerHTML = sparkRow(ents.mos_temp, "#f59e0b");
+
+      // ⚡ NEW (13 ส.ค. 69): เติมสเกล min–max มุมบนขวาของแต่ละ tile ที่มีกราฟ (เฉพาะตอนเปิด sparkline)
+      const scaleRow = (selector, entityId, decimals) => {
+        const el = root.querySelector(selector);
+        if (el) el.textContent = this._config.show_sparklines ? this._getSparklineRange(entityId, decimals) : "";
+      };
+      scaleRow(".scale-voltage", ents.total_voltage, this._config.decimals_voltage);
+      scaleRow(".scale-current", ents.current, this._config.decimals_current);
+      scaleRow(".scale-temp1", ents.temp_1, 1);
+      scaleRow(".scale-temp2", ents.temp_2, 1);
+      scaleRow(".scale-mostemp", ents.mos_temp, 1);
     }
 
     // --- Main metrics ---
@@ -1462,6 +1488,18 @@ class BatteryCellCard extends HTMLElement {
         color: #8b949e;
         font-weight: 600;
         margin-bottom: 3px;
+      }
+      /* ⚡ NEW (13 ส.ค. 69): สเกลอ้างอิง (min–max) มุมบนขวาของ tile ที่มีกราฟ — ผู้ใช้ขอให้มีสเกลบอก
+         เดิมมีแค่กราฟเปล่าๆ ไม่รู้ว่าค่ากำลังแกว่งอยู่ในช่วงไหน */
+      .trend-tile-scale {
+        position: absolute;
+        top: 10px;
+        right: 12px;
+        z-index: 1;
+        font-size: 9px;
+        color: #6b7785;
+        font-weight: 600;
+        letter-spacing: -0.01em;
       }
       .trend-tile-value {
         position: relative;
