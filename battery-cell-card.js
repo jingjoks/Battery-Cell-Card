@@ -88,7 +88,7 @@
  * just point the `entities` config at your own entity IDs.
  */
 
-const CARD_VERSION = "2.2.1";
+const CARD_VERSION = "2.2.2";
 
 console.info(
   `%c JK-BMS-CARD %c v${CARD_VERSION} `,
@@ -1293,8 +1293,8 @@ class BatteryCellCard extends HTMLElement {
       /* --- Arc gauge (270°, speedometer style) --- */
       .arc-gauge-wrap {
         position: relative;
-        width: 208px;
-        height: 183px;
+        width: 248px;
+        height: 218px;
       }
       .arc-gauge-svg {
         width: 100%;
@@ -1337,8 +1337,8 @@ class BatteryCellCard extends HTMLElement {
         font-weight: 600;
         transform: translate(-50%, -50%);
       }
-      .arc-end-label-min { left: 28.4%; top: 70%; }
-      .arc-end-label-max { left: 71.6%; top: 70%; }
+      .arc-end-label-min { left: 22%; top: 80%; }
+      .arc-end-label-max { left: 78%; top: 80%; }
 
       /* --- Battery shape (horizontal icon) --- */
       .battshape-wrap {
