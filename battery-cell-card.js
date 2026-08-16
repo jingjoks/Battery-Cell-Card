@@ -88,7 +88,7 @@
  * just point the `entities` config at your own entity IDs.
  */
 
-const CARD_VERSION = "2.2.0";
+const CARD_VERSION = "2.2.1";
 
 console.info(
   `%c JK-BMS-CARD %c v${CARD_VERSION} `,
@@ -708,16 +708,6 @@ class BatteryCellCard extends HTMLElement {
             }
           </div>
 
-          ${
-            ents.charge_status || ents.discharge_status || ents.balance_status
-              ? `<div class="status-row">
-                  ${ents.charge_status ? `<div class="status-chip"><span class="status-dot status-dot-charge"></span><span class="status-label" data-k="charge"></span><span class="status-pill status-charge"></span></div>` : ""}
-                  ${ents.discharge_status ? `<div class="status-chip"><span class="status-dot status-dot-discharge"></span><span class="status-label" data-k="discharge"></span><span class="status-pill status-discharge"></span></div>` : ""}
-                  ${ents.balance_status ? `<div class="status-chip"><span class="status-dot status-dot-balance"></span><span class="status-label" data-k="balance"></span><span class="status-pill status-balance"></span></div>` : ""}
-                </div>`
-              : ""
-          }
-
           <div class="battery-visual">
             ${
               this._config.show_flow_icons
@@ -739,7 +729,7 @@ class BatteryCellCard extends HTMLElement {
                     <linearGradient id="arcGaugeGrad" x1="0%" y1="100%" x2="65%" y2="0%">
                       <stop class="arc-grad-stop-0" offset="0%" stop-color="#22c55e"/>
                       <stop class="arc-grad-stop-1" offset="50%" stop-color="#4ade80"/>
-                      <stop class="arc-grad-stop-2" offset="100%" stop-color="#38bdf8"/>
+                      <stop offset="100%" stop-color="#38bdf8"/>
                     </linearGradient>
                     <filter id="arcGlowFilter" x="-50%" y="-50%" width="200%" height="200%">
                       <feGaussianBlur stdDeviation="5" result="blur"/>
@@ -834,6 +824,16 @@ class BatteryCellCard extends HTMLElement {
                 : ""
             }
           </div>
+
+          ${
+            ents.charge_status || ents.discharge_status || ents.balance_status
+              ? `<div class="status-row">
+                  ${ents.charge_status ? `<div class="status-chip"><span class="status-label" data-k="charge"></span><span class="status-pill status-charge"></span></div>` : ""}
+                  ${ents.discharge_status ? `<div class="status-chip"><span class="status-label" data-k="discharge"></span><span class="status-pill status-discharge"></span></div>` : ""}
+                  ${ents.balance_status ? `<div class="status-chip"><span class="status-label" data-k="balance"></span><span class="status-pill status-balance"></span></div>` : ""}
+                </div>`
+              : ""
+          }
 
           <div class="trend-tile-grid">
             <div class="trend-tile">
@@ -935,7 +935,7 @@ class BatteryCellCard extends HTMLElement {
 
     // --- Battery visual ---
     // ⚡ FIX: element พวกนี้อยู่ใน flow-icon ที่ตอนนี้ซ่อนได้ด้วย show_flow_icons — ถ้าซ่อนอยู่
-    // querySelector จะได้ null แล้ว .textContent พังทันที (เจอบั๊กจริงตอนทดสอบ render จริง)
+    // querySelector จะได้ null แล้ว .textContent พังทันที
     if (this._config.show_flow_icons) {
       root.querySelector('[data-k="gridSolar"]').textContent = t("gridSolar");
       root.querySelector('[data-k="load"]').textContent = t("load");
@@ -952,8 +952,6 @@ class BatteryCellCard extends HTMLElement {
     const effectiveDischarging = statusConflict ? isDischarging : dischargeStatus !== undefined ? dischargeStatus : isDischarging;
     const absPower = power !== undefined ? Math.abs(power) : undefined;
 
-    // ⚡ NEW: ครอบทั้งบล็อกด้วยเช็ค show_flow_icons — ถ้าปิดไว้ element พวกนี้จะไม่ถูก render เลย
-    // (ดู HTML template ด้านบน) querySelector จะได้ null แล้ว .textContent/.classList พัง ต้องข้ามไปเลย
     if (this._config.show_flow_icons) {
       const leftStateEl = root.querySelector(".flow-state-left");
       const rightStateEl = root.querySelector(".flow-state-right");
@@ -1002,12 +1000,8 @@ class BatteryCellCard extends HTMLElement {
         el.style.strokeDashoffset = `${offset.toFixed(1)}`;
       });
 
-      // ⚡ UPDATE: ใช้สีเดียวกันทั้ง 2 stop (แทนไล่สีเข้ม→อ่อนแบบเดิม) ให้ดูเป็นสีทึบสม่ำเสมอ
-      // แบบแอป JK-BMS ต้นแบบ — ยังคงระบบสีแดง/เหลือง/เขียวตาม SOC ไว้เหมือนเดิมทุกจุด (ค่า socColor
-      // เดียวกันนี้ยังคำนวณจากเกณฑ์ ≤20%=แดง, ≤50%=เหลือง, >50%=เขียว เหมือนเดิมไม่เปลี่ยน)
-      root.querySelector(".arc-grad-stop-0").setAttribute("stop-color", socColor);
+      root.querySelector(".arc-grad-stop-0").setAttribute("stop-color", socColorDark);
       root.querySelector(".arc-grad-stop-1").setAttribute("stop-color", socColor);
-      root.querySelector(".arc-grad-stop-2").setAttribute("stop-color", socColor);
 
       // ตำแหน่งจุดปลายแถบ (pointer) คำนวณจากมุมเดียวกับที่ใช้วาด path (เริ่ม 135°, กวาด 270°)
       const angleDeg = 135 + 270 * (socPct / 100);
@@ -1107,32 +1101,26 @@ class BatteryCellCard extends HTMLElement {
     root.querySelector(".cycles").textContent = cycles !== undefined ? this._fmt(cycles, 0) : "—";
 
     // --- Balance status pill (charge/discharge ย้ายไปแสดงที่ flow icon ซ้าย-ขวาแล้ว) ---
-    // ⚡ UPDATE: เพิ่ม dotSelector ให้ toggle จุดสี • คู่กับตัวหนังสือ ON/OFF ไปด้วย (แบบแอป JK-BMS)
-    const setStatusPill = (selector, state, dotSelector) => {
+    const setStatusPill = (selector, state) => {
       const el = root.querySelector(selector);
-      const dotEl = dotSelector ? root.querySelector(dotSelector) : null;
-      if (el) {
-        if (state === undefined) {
-          el.textContent = "—";
-          el.className = el.className.replace(/\bstatus-(on|off)\b/g, "").trim();
-        } else {
-          el.textContent = state ? t("statusOn") : t("statusOff");
-          el.className = el.className.replace(/\bstatus-(on|off)\b/g, "").trim() + (state ? " status-on" : " status-off");
-        }
-      }
-      if (dotEl) {
-        dotEl.className = dotEl.className.replace(/\bstatus-(on|off)\b/g, "").trim() + (state === undefined ? "" : state ? " status-on" : " status-off");
+      if (!el) return;
+      if (state === undefined) {
+        el.textContent = "—";
+        el.className = el.className.replace(/\bstatus-(on|off)\b/g, "").trim();
+      } else {
+        el.textContent = state ? t("statusOn") : t("statusOff");
+        el.className = el.className.replace(/\bstatus-(on|off)\b/g, "").trim() + (state ? " status-on" : " status-off");
       }
     };
     root.querySelectorAll('[data-k="balance"]').forEach((el) => (el.textContent = t("balance")));
     root.querySelectorAll('[data-k="charge"]').forEach((el) => (el.textContent = t("charge")));
     root.querySelectorAll('[data-k="discharge"]').forEach((el) => (el.textContent = t("discharge")));
-    setStatusPill(".status-balance", balanceStatus, ".status-dot-balance");
+    setStatusPill(".status-balance", balanceStatus);
     // ใช้ effectiveCharging/effectiveDischarging ตัวเดียวกับที่ไอคอน flow ซ้าย-ขวาใช้
     // (คำนวณไว้แล้วด้านบน) เพื่อให้ชิปสถานะตรงนี้กับไอคอน flow แสดงผลตรงกันเสมอ
     // ไม่ขัดแย้งกันเองแม้ entity charge_status/discharge_status จะรายงานค้างพร้อมกัน
-    setStatusPill(".status-charge", ents.charge_status ? effectiveCharging : undefined, ".status-dot-charge");
-    setStatusPill(".status-discharge", ents.discharge_status ? effectiveDischarging : undefined, ".status-dot-discharge");
+    setStatusPill(".status-charge", ents.charge_status ? effectiveCharging : undefined);
+    setStatusPill(".status-discharge", ents.discharge_status ? effectiveDischarging : undefined);
 
     // --- Max/min cell label ใต้กราฟ voltage หลัก ---
     const maxCellLabelEl = root.querySelector('[data-k="maxCell"]');
@@ -1337,15 +1325,10 @@ class BatteryCellCard extends HTMLElement {
         letter-spacing: -0.02em;
         color: #4ade80;
       }
-      /* ⚡ UPDATE: ใส่กรอบทรงแคปซูล (pill) รอบ V/A ตามรูปตัวอย่าง แทนตัวหนังสือลอยเฉยๆ */
       .arc-gauge-sub {
         font-size: 12.5px;
-        font-weight: 700;
-        color: #e6edf3;
-        border: 1.5px solid #2a3744;
-        border-radius: 14px;
-        padding: 3px 14px;
-        margin-top: 3px;
+        font-weight: 600;
+        color: #8b949e;
       }
       .arc-end-label {
         position: absolute;
@@ -1387,46 +1370,36 @@ class BatteryCellCard extends HTMLElement {
       }
 
       /* --- Charge/Discharge/Balance status row --- */
-      /* ⚡ UPDATE: จัดใหม่เป็นแถวเดียวคั่นด้วยเส้นบางๆ (แบบแอป JK-BMS) แทนกล่องแยกแต่ละอัน */
       .status-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-around;
-        padding: 10px 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+        gap: 10px;
         margin-bottom: 18px;
-        border-bottom: 1px solid #1f2a36;
       }
       .status-chip {
+        background: #161e27;
+        border: 1px solid #1f2a36;
+        border-radius: 12px;
+        padding: 10px 8px;
         display: flex;
+        flex-direction: column;
         align-items: center;
         gap: 6px;
-        padding: 0 14px;
-        border-right: 1px solid #1f2a36;
       }
-      .status-chip:last-child { border-right: none; }
-      .status-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: #6b7785;
-        flex-shrink: 0;
-      }
-      .status-dot.status-on { background: #4ade80; }
-      .status-dot.status-off { background: #fb7185; }
       .status-label {
-        font-size: 13px;
-        color: #c9d1d9;
+        font-size: 12px;
+        color: #8b949e;
         font-weight: 600;
       }
       .status-pill {
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 800;
+        padding: 2px 12px;
+        border-radius: 10px;
         letter-spacing: 0.03em;
-        background: none;
+        background: #2a3744;
         color: #6b7785;
       }
-      .status-pill.status-on { color: #4ade80; }
-      .status-pill.status-off { color: #fb7185; }
       .status-pill.status-on {
         background: rgba(74, 222, 128, 0.18);
         color: #4ade80;
@@ -1663,8 +1636,8 @@ class BatteryCellCard extends HTMLElement {
       .cell-batt-body {
         position: relative;
         width: 100%;
-        max-width: 46px;
-        height: 110px;
+        max-width: 52px;
+        height: 112px;
         background: #16202b;
         border-radius: 7px;
         border: 1.5px solid #1f2a36;
@@ -1714,19 +1687,23 @@ class BatteryCellCard extends HTMLElement {
         line-height: 1.25;
         pointer-events: none;
       }
+      /* ⚡ FIX: เดิมฟอนต์ใหญ่เกินกล่อง (46px) ตัวเลขอย่าง 3.282V ล้นออกมาไม่ชัดเจน โดยเฉพาะจอแคบ/
+         cell_columns เยอะ — ลดขนาดฟอนต์ให้พอดีขึ้น + ใส่ ellipsis กันเหนียวถ้าแคบมากๆ จริงๆ */
       .cell-batt-v {
-        font-size: 11.5px;
+        font-size: 9px;
         font-weight: 800;
         color: #fff;
         text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
         white-space: nowrap;
+        letter-spacing: -0.3px;
       }
       .cell-batt-r {
-        font-size: 8.5px;
+        font-size: 7px;
         font-weight: 600;
         color: rgba(255, 255, 255, 0.85);
         text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
         white-space: nowrap;
+        letter-spacing: -0.2px;
       }
 
       .cell-empty {
